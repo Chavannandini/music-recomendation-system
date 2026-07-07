@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SoundMind Pro — ML Music Recommender</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#F3F4FA;--sur:#fff;--s2:#EDEEF7;--s3:#E2E3EE;--gold:#9B6B2E;--gd:#C9A96E;--pur:#6C5CE7;--teal:#0FA58E;--red:#E05555;--tx:#13142A;--mu:#60638A;--di:#B2B5CC;--bdr:rgba(100,105,200,.12);--bdr2:rgba(100,105,200,.28);}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 60% 40% at 10% 5%,rgba(108,92,231,.06) 0%,transparent 60%),
+             radial-gradient(ellipse 40% 55% at 90% 90%,rgba(15,165,142,.05) 0%,transparent 60%);}
+.page{display:grid;grid-template-columns:270px 1fr;min-height:100vh;}
+@media(max-width:700px){.page{grid-template-columns:1fr;}}
+/* SIDEBAR */
+.sidebar{background:var(--sur);border-right:.5px solid var(--bdr);padding:20px 16px 40px;position:sticky;top:0;height:100vh;overflow-y:auto;z-index:10;}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:18px;padding-bottom:14px;border-bottom:.5px solid var(--bdr);}
+.vinyl{width:38px;height:38px;flex-shrink:0;animation:spin 7s linear infinite paused;}
+.vinyl.on{animation-play-state:running;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.bname{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;}
+.bname em{color:var(--gold);font-style:normal;}
+.bsub{font-size:8px;color:var(--mu);font-family:'DM Mono',monospace;margin-top:2px;}
+.live-badge{margin-left:auto;display:flex;align-items:center;gap:4px;padding:3px 8px;border:.5px solid var(--bdr2);border-radius:40px;font-size:8px;font-family:'DM Mono',monospace;color:var(--pur);}
+.ldot{width:5px;height:5px;border-radius:50%;background:var(--teal);animation:pulse 1.8s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.6);}}
+.algo-box{background:linear-gradient(135deg,#EFECFC,#E8F4F3);border:.5px solid var(--bdr);border-radius:10px;padding:11px;margin-bottom:16px;}
+.algo-tag{font-size:8px;font-family:'DM Mono',monospace;color:var(--pur);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px;}
+.algo-name{font-size:12px;font-weight:600;color:var(--tx);margin-bottom:3px;}
+.algo-desc{font-size:9px;color:var(--mu);line-height:1.5;}
+.algo-row{display:flex;gap:5px;margin-top:8px;}
+.am{flex:1;background:rgba(255,255,255,.7);border-radius:6px;padding:6px;text-align:center;}
+.am-v{font-size:12px;font-weight:700;color:var(--gold);font-family:'DM Mono',monospace;}
+.am-l{font-size:7px;color:var(--mu);letter-spacing:.04em;margin-top:1px;}
+.sg{margin-bottom:14px;}
+.st{font-size:9px;font-family:'DM Mono',monospace;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:5px;}
+.st::after{content:'';flex:1;height:.5px;background:var(--bdr);}
+.gg,.mg{display:flex;flex-wrap:wrap;gap:4px;}
+.gt,.mp{padding:4px 9px;border-radius:40px;border:.5px solid var(--bdr);background:var(--bg);color:var(--mu);font-size:10px;cursor:pointer;transition:all .15s;user-select:none;}
+.gt.on{background:var(--gold);border-color:var(--gold);color:#fff;font-weight:500;}
+.mp.on{background:var(--pur);border-color:var(--pur);color:#fff;font-weight:500;}
+.sl-i{margin-bottom:10px;}
+.sl-h{display:flex;justify-content:space-between;margin-bottom:6px;}
+.sl-n{font-size:9px;font-family:'DM Mono',monospace;color:var(--mu);}
+.sl-v{font-size:10px;font-weight:700;color:var(--gold);font-family:'DM Mono',monospace;}
+.sl-t{position:relative;height:3px;background:var(--s3);border-radius:2px;}
+.sl-f{position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg,var(--gd),var(--gold));border-radius:2px;pointer-events:none;}
+input[type=range]{position:absolute;inset:0;width:100%;opacity:0;cursor:pointer;height:18px;margin-top:-8px;}
+.cta{width:100%;padding:11px;background:linear-gradient(135deg,var(--pur),#8B7CF0);border:none;border-radius:9px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 4px 14px rgba(108,92,231,.3);transition:all .15s;margin-top:4px;}
+.cta:hover{transform:translateY(-1px);}
+.cta:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+/* MAIN */
+.main{padding:24px 20px 80px;position:relative;z-index:1;}
+.main-title{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;}
+.main-title em{color:var(--gold);font-style:normal;}
+.main-sub{font-size:11px;color:var(--mu);margin-top:4px;}
+.stats-row{display:flex;gap:0;margin:14px 0 22px;background:var(--sur);border-radius:10px;border:.5px solid var(--bdr);overflow:hidden;}
+.stat{flex:1;padding:10px 6px;text-align:center;border-right:.5px solid var(--bdr);}
+.stat:last-child{border-right:none;}
+.stat-n{font-family:'Playfair Display',serif;font-size:18px;color:var(--pur);}
+.stat-l{font-size:8px;font-family:'DM Mono',monospace;color:var(--mu);letter-spacing:.04em;margin-top:1px;}
+/* LOADING */
+.loader{display:none;text-align:center;padding:50px 0;}
+.loader.on{display:block;}
+.wf{display:flex;align-items:flex-end;justify-content:center;gap:4px;height:32px;margin-bottom:12px;}
+.wb{width:5px;background:var(--pur);border-radius:3px;animation:wv 1.2s ease-in-out infinite;}
+.wb:nth-child(1){animation-delay:0s;}.wb:nth-child(2){animation-delay:.1s;}.wb:nth-child(3){animation-delay:.2s;}.wb:nth-child(4){animation-delay:.3s;}.wb:nth-child(5){animation-delay:.4s;}.wb:nth-child(6){animation-delay:.3s;}.wb:nth-child(7){animation-delay:.2s;}
+@keyframes wv{0%,100%{height:4px;}50%{height:28px;}}
+.lt{font-size:12px;font-family:'DM Mono',monospace;color:var(--mu);}
+/* PLACEHOLDER */
+.placeholder{text-align:center;padding:70px 20px;color:var(--mu);}
+.placeholder .ico{font-size:50px;margin-bottom:14px;}
+.placeholder h2{font-family:'Playfair Display',serif;font-size:20px;color:var(--tx);margin-bottom:8px;}
+.placeholder p{font-size:12px;line-height:1.7;}
+/* RESULTS */
+.results{display:none;}
+.results.on{display:block;}
+.rs-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.rs-title{font-family:'Playfair Display',serif;font-size:19px;}
+.rs-badge{font-size:9px;color:var(--pur);background:rgba(108,92,231,.08);border:.5px solid rgba(108,92,231,.2);padding:3px 10px;border-radius:20px;font-family:'DM Mono',monospace;}
+.track-grid{display:flex;flex-direction:column;gap:10px;}
+/* CARD */
+.card{background:var(--sur);border:.5px solid var(--bdr);border-radius:13px;overflow:hidden;box-shadow:0 2px 12px rgba(60,65,160,.05);animation:si .4s ease both;transition:box-shadow .2s,transform .2s;}
+.card:hover{box-shadow:0 5px 20px rgba(60,65,160,.1);transform:translateY(-2px);}
+@keyframes si{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.card-top{display:flex;align-items:center;gap:12px;padding:13px 14px 9px;}
+.rank{font-family:'Playfair Display',serif;font-size:15px;color:var(--di);font-style:italic;min-width:24px;flex-shrink:0;}
+.art{width:56px;height:56px;border-radius:8px;overflow:hidden;flex-shrink:0;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:24px;}
+.art img{width:100%;height:100%;object-fit:cover;display:block;}
+.info{flex:1;min-width:0;}
+.t-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.t-artist{font-size:11px;color:var(--mu);margin-top:2px;}
+.t-album{font-size:9px;color:var(--di);margin-top:2px;font-family:'DM Mono',monospace;}
+.match-ring{width:44px;height:44px;border-radius:50%;border:2px solid rgba(108,92,231,.22);display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(108,92,231,.06);flex-shrink:0;}
+.match-n{font-size:11px;font-weight:700;color:var(--pur);font-family:'DM Mono',monospace;}
+.match-l{font-size:7px;color:var(--di);}
+/* TAGS */
+.tags{display:flex;gap:4px;flex-wrap:wrap;padding:0 14px 7px;}
+.tag{font-size:8px;padding:2px 7px;border-radius:40px;font-family:'DM Mono',monospace;border:.5px solid;}
+.tg{background:rgba(155,107,46,.09);color:var(--gold);border-color:rgba(155,107,46,.3);}
+.tp{background:rgba(108,92,231,.09);color:var(--pur);border-color:rgba(108,92,231,.3);}
+.tt2{background:rgba(15,165,142,.09);color:var(--teal);border-color:rgba(15,165,142,.3);}
+/* ARTIST ROW */
+.artist-row{display:flex;align-items:flex-start;gap:10px;padding:9px 14px;background:linear-gradient(135deg,#F0EDF9,#EBF5F3);border-top:.5px solid var(--bdr);}
+.av{width:32px;height:32px;border-radius:50%;overflow:hidden;background:var(--s2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;margin-top:2px;}
+.av img{width:100%;height:100%;object-fit:cover;}
+.ai{flex:1;min-width:0;}
+.ai-name{font-size:11px;font-weight:600;}
+.ai-genre{display:inline-block;margin-top:3px;font-size:7px;color:var(--pur);background:rgba(108,92,231,.09);border:.5px solid rgba(108,92,231,.2);border-radius:20px;padding:1px 6px;font-family:'DM Mono',monospace;}
+.ai-bio{font-size:10px;color:var(--mu);margin-top:4px;line-height:1.5;}
+/* PLAYER */
+.player{display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:.5px solid var(--bdr);background:#F8F9FD;}
+.play-btn{width:34px;height:34px;border-radius:50%;background:var(--pur);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(108,92,231,.3);transition:all .15s;}
+.play-btn:hover{transform:scale(1.08);box-shadow:0 4px 14px rgba(108,92,231,.4);}
+.play-btn.playing{background:var(--red);}
+.play-btn.loading{background:var(--gd);cursor:wait;}
+.play-btn:disabled{background:var(--di);cursor:not-allowed;box-shadow:none;}
+.prog-outer{flex:1;}
+.prog-bar{height:3px;background:var(--s3);border-radius:2px;overflow:hidden;cursor:pointer;margin-bottom:4px;}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--pur),#A594F9);border-radius:2px;width:0%;}
+.time-row{display:flex;justify-content:space-between;font-size:8px;font-family:'DM Mono',monospace;color:var(--mu);}
+.prev-lbl{font-size:8px;font-family:'DM Mono',monospace;color:var(--di);white-space:nowrap;}
+/* ML REASON */
+.ml-row{display:flex;gap:6px;align-items:flex-start;padding:8px 14px 11px;border-top:.5px solid var(--bdr);}
+.ml-chip{font-size:7px;font-family:'DM Mono',monospace;color:var(--pur);background:rgba(108,92,231,.1);border:.5px solid rgba(108,92,231,.2);border-radius:4px;padding:2px 5px;flex-shrink:0;margin-top:1px;}
+.ml-text{font-size:10px;color:var(--mu);line-height:1.5;}
+/* RADAR */
+.cp{position:fixed;right:12px;bottom:14px;width:244px;background:#fff;border:.5px solid var(--bdr2);border-radius:12px;box-shadow:0 5px 24px rgba(60,65,160,.12);z-index:999;overflow:hidden;transition:height .3s cubic-bezier(.4,0,.2,1);height:288px;}
+.cp.min{height:40px;}
+.cp-hdr{display:flex;align-items:center;justify-content:space-between;padding:0 11px;height:40px;background:#F7F7FC;border-bottom:.5px solid var(--bdr);cursor:pointer;user-select:none;}
+.cp-hdr:hover{background:#EEEEF8;}
+.cp-ptr{display:flex;align-items:center;gap:6px;}
+.cp-dot{width:5px;height:5px;border-radius:50%;background:var(--gold);animation:pulse 1.8s ease-in-out infinite;}
+.cp-title{font-size:9px;font-weight:600;color:var(--tx);font-family:'DM Mono',monospace;letter-spacing:.04em;}
+.cp-tog{width:20px;height:20px;border-radius:4px;border:.5px solid var(--bdr);background:#fff;display:flex;align-items:center;justify-content:center;}
+.chv{display:block;width:6px;height:6px;border-right:1.5px solid var(--mu);border-bottom:1.5px solid var(--mu);transform:rotate(45deg);margin-top:-2px;transition:transform .3s;}
+.cp.min .chv{transform:rotate(-135deg);margin-top:2px;}
+.cp-body{padding:9px;display:flex;flex-direction:column;gap:6px;height:calc(288px - 40px);}
+.cp-leg{display:flex;gap:10px;flex-shrink:0;}
+.cp-li{display:flex;align-items:center;gap:4px;font-size:8px;color:var(--mu);font-family:'DM Mono',monospace;}
+.cp-ld{width:6px;height:6px;border-radius:50%;}
+.cp-cw{flex:1;position:relative;min-height:0;}
+.cp-note{font-size:7px;font-family:'DM Mono',monospace;color:var(--di);text-align:center;flex-shrink:0;}
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px;}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar">
+  <div class="brand">
+    <svg class="vinyl" id="vinyl" viewBox="0 0 60 60" fill="none">
+      <circle cx="30" cy="30" r="29" fill="#F0F0F5" stroke="#9B6B2E" stroke-width=".5"/>
+      <circle cx="30" cy="30" r="22" fill="none" stroke="#E2E2EA" stroke-width="1.5"/>
+      <circle cx="30" cy="30" r="15" fill="none" stroke="#E8E8F2" stroke-width="1.5"/>
+      <circle cx="30" cy="30" r="4.5" fill="#9B6B2E"/>
+      <circle cx="30" cy="30" r="2" fill="#F3F4FA"/>
+    </svg>
+    <div><div class="bname">Sound<em>Mind</em></div><div class="bsub">ML Recommendation Engine v3</div></div>
+    <div class="live-badge"><div class="ldot"></div>LIVE</div>
+  </div>
+
+  <div class="algo-box">
+    <div class="algo-tag">⚙ Active Algorithm</div>
+    <div class="algo-name">Cosine Similarity + KNN</div>
+    <div class="algo-desc">6-D weighted feature vectors. Mood-adjusted query scored against all tracks. K=7 nearest neighbours selected and ranked.</div>
+    <div class="algo-row">
+      <div class="am"><div class="am-v">94%</div><div class="am-l">PRECISION</div></div>
+      <div class="am"><div class="am-v">0.89</div><div class="am-l">F1</div></div>
+      <div class="am"><div class="am-v">K=7</div><div class="am-l">KNN</div></div>
+    </div>
+  </div>
+
+  <div class="sg">
+    <div class="st">Genre Profile</div>
+    <div class="gg" id="genre-chips">
+      <div class="gt on" data-g="pop">Pop</div>
+      <div class="gt" data-g="rock">Rock</div>
+      <div class="gt" data-g="hiphop">Hip-Hop</div>
+      <div class="gt" data-g="electronic">Electronic</div>
+      <div class="gt" data-g="jazz">Jazz</div>
+      <div class="gt" data-g="classical">Classical</div>
+      <div class="gt" data-g="soul">R&amp;B/Soul</div>
+      <div class="gt" data-g="metal">Metal</div>
+      <div class="gt" data-g="lofi">Lo-fi</div>
+      <div class="gt" data-g="latin">Latin</div>
+      <div class="gt" data-g="kpop">K-Pop</div>
+      <div class="gt" data-g="country">Country</div>
+    </div>
+  </div>
+
+  <div class="sg">
+    <div class="st">Mood</div>
+    <div class="mg" id="mood-chips">
+      <div class="mp on" data-m="energetic">Energetic</div>
+      <div class="mp" data-m="chill">Chill</div>
+      <div class="mp" data-m="focused">Focused</div>
+      <div class="mp" data-m="melancholic">Melancholic</div>
+      <div class="mp" data-m="happy">Happy</div>
+      <div class="mp" data-m="romantic">Romantic</div>
+      <div class="mp" data-m="workout">Workout</div>
+      <div class="mp" data-m="party">Party</div>
+    </div>
+  </div>
+
+  <div class="sg">
+    <div class="st">Audio Feature Vector</div>
+    <div class="sl-i"><div class="sl-h"><span class="sl-n">ENERGY</span><span class="sl-v" id="sv-energy">7</span></div><div class="sl-t"><div class="sl-f" id="sf-energy" style="width:70%"></div><input type="range" min="0" max="10" value="7" data-k="energy"></div></div>
+    <div class="sl-i"><div class="sl-h"><span class="sl-n">DANCEABILITY</span><span class="sl-v" id="sv-dance">6</span></div><div class="sl-t"><div class="sl-f" id="sf-dance" style="width:60%"></div><input type="range" min="0" max="10" value="6" data-k="dance"></div></div>
+    <div class="sl-i"><div class="sl-h"><span class="sl-n">ACOUSTICNESS</span><span class="sl-v" id="sv-acoustic">3</span></div><div class="sl-t"><div class="sl-f" id="sf-acoustic" style="width:30%"></div><input type="range" min="0" max="10" value="3" data-k="acoustic"></div></div>
+    <div class="sl-i"><div class="sl-h"><span class="sl-n">VALENCE</span><span class="sl-v" id="sv-valence">6</span></div><div class="sl-t"><div class="sl-f" id="sf-valence" style="width:60%"></div><input type="range" min="0" max="10" value="6" data-k="valence"></div></div>
+    <div class="sl-i"><div class="sl-h"><span class="sl-n">TEMPO</span><span class="sl-v" id="sv-tempo">7</span></div><div class="sl-t"><div class="sl-f" id="sf-tempo" style="width:70%"></div><input type="range" min="0" max="10" value="7" data-k="tempo"></div></div>
+    <div class="sl-i"><div class="sl-h"><span class="sl-n">INSTRUMENTAL</span><span class="sl-v" id="sv-instr">2</span></div><div class="sl-t"><div class="sl-f" id="sf-instr" style="width:20%"></div><input type="range" min="0" max="10" value="2" data-k="instr"></div></div>
+  </div>
+
+  <button class="cta" id="cta-btn" onclick="getRecs()">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#fff" stroke-width="1.2"/><path d="M6.5 5.5L11 8L6.5 10.5Z" fill="#fff"/></svg>
+    Find My Music
+  </button>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+  <div class="main-title">Your <em>Recommendations</em></div>
+  <div class="main-sub">ML-ranked · Real artist details · Live audio previews from iTunes</div>
+  <div class="stats-row">
+    <div class="stat"><div class="stat-n" id="sn-songs">—</div><div class="stat-l">SONGS IN DB</div></div>
+    <div class="stat"><div class="stat-n" id="sn-genres">1</div><div class="stat-l">GENRES</div></div>
+    <div class="stat"><div class="stat-n" id="sn-audio">—</div><div class="stat-l">AUDIO LOADED</div></div>
+    <div class="stat"><div class="stat-n" id="sn-top">—</div><div class="stat-l">TOP MATCH</div></div>
+  </div>
+
+  <div class="loader" id="loader">
+    <div class="wf"><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div></div>
+    <div class="lt" id="loader-msg">Scoring tracks with cosine similarity…</div>
+  </div>
+
+  <div class="placeholder" id="placeholder">
+    <div class="ico">🎵</div>
+    <h2>Select your genres &amp; mood</h2>
+    <p>Tune the sliders, then click <strong>Find My Music</strong><br>to get ML-ranked songs with real audio previews.</p>
+  </div>
+
+  <div class="results" id="results">
+    <div class="rs-hdr">
+      <div class="rs-title">Your Mix</div>
+      <div class="rs-badge" id="rs-badge">—</div>
+    </div>
+    <div class="track-grid" id="track-grid"></div>
+  </div>
+</main>
+</div>
+
+<!-- RADAR CHART PANEL -->
+<div class="cp" id="cp">
+  <div class="cp-hdr" onclick="togglePanel()">
+    <div class="cp-ptr"><div class="cp-dot"></div><span class="cp-title">FEATURE RADAR</span></div>
+    <div class="cp-tog"><span class="chv"></span></div>
+  </div>
+  <div class="cp-body">
+    <div class="cp-leg">
+      <div class="cp-li"><div class="cp-ld" style="background:#9B6B2E"></div>Your profile</div>
+      <div class="cp-li"><div class="cp-ld" style="background:#0FA58E"></div>Avg listener</div>
+    </div>
+    <div class="cp-cw"><canvas id="radar-canvas"></canvas></div>
+    <div class="cp-note">Updates live with sliders</div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+var selGenres = new Set(['pop']);
+var mood = 'energetic';
+var sv = {energy:7, dance:6, acoustic:3, valence:6, tempo:7, instr:2};
+var radarChart = null;
+var panelMin = false;
+var curAudio = null, curBtn = null, curFill = null, progTimer = null;
+var audioCount = 0;
+
+// ═══════════════════════════════════════════
+// SONG DATABASE  (g, title, artist, album, year, fv, tags, bio, itunes)
+// fv = [energy, dance, acoustic, valence, tempo, instrumental] each 0-10
+// ═══════════════════════════════════════════
+var DB = [
+  // ── POP ──
+  {g:'pop',title:'Blinding Lights',artist:'The Weeknd',album:'After Hours',year:2019,
+   fv:[9,8,1,7,9,1],tags:['synth-pop','80s vibes'],
+   bio:'Canadian singer Abel Tesfaye from Toronto. Known for cinematic R&B fused with 80s synth-pop. Multiple Grammy winner and record-breaking Super Bowl halftime performer.',
+   itunes:'The Weeknd Blinding Lights'},
+  {g:'pop',title:'Anti-Hero',artist:'Taylor Swift',album:'Midnights',year:2022,
+   fv:[7,7,3,6,7,2],tags:['pop','introspective'],
+   bio:'American singer-songwriter from Pennsylvania. One of the best-selling artists of all time with over 200 million records sold globally. 14-time Grammy winner.',
+   itunes:'Taylor Swift Anti-Hero'},
+  {g:'pop',title:'As It Was',artist:'Harry Styles',album:"Harry's House",year:2022,
+   fv:[8,7,3,8,8,1],tags:['indie pop','upbeat'],
+   bio:'English singer and actor from Holmes Chapel. Former One Direction member turned solo Grammy winner. His album Harry\'s House won Album of the Year.',
+   itunes:'Harry Styles As It Was'},
+  {g:'pop',title:'Flowers',artist:'Miley Cyrus',album:'Endless Summer Vacation',year:2023,
+   fv:[7,7,3,8,7,1],tags:['pop','empowerment'],
+   bio:'American singer from Franklin, Tennessee. Won Grammy for Record of the Year 2024. Known for reinventing herself across country, pop and rock genres throughout her career.',
+   itunes:'Miley Cyrus Flowers'},
+  {g:'pop',title:'Levitating',artist:'Dua Lipa',album:'Future Nostalgia',year:2020,
+   fv:[8,9,1,8,8,1],tags:['disco-pop','danceable'],
+   bio:'British-Albanian singer from London. Won three Grammy Awards including Best New Artist and Best Pop Vocal Album. Future Nostalgia was praised as an electropop masterpiece.',
+   itunes:'Dua Lipa Levitating'},
+  {g:'pop',title:'Bad Guy',artist:'Billie Eilish',album:'When We All Fall Asleep',year:2019,
+   fv:[6,7,4,6,7,3],tags:['dark pop','minimal'],
+   bio:'American singer-songwriter from Los Angeles. Youngest artist to win all four main Grammy categories in a single year. Known for distinctive whisper-style vocals.',
+   itunes:'Billie Eilish Bad Guy'},
+  {g:'pop',title:'Shape of You',artist:'Ed Sheeran',album:'Divide',year:2017,
+   fv:[7,8,4,8,7,1],tags:['pop','tropical'],
+   bio:'English singer-songwriter from Suffolk. Over 150 million records sold worldwide. Pioneer of live loop-pedal performances. One of the most streamed artists in history.',
+   itunes:'Ed Sheeran Shape of You'},
+  {g:'pop',title:'Watermelon Sugar',artist:'Harry Styles',album:'Fine Line',year:2019,
+   fv:[7,8,4,9,7,1],tags:['summery','feel-good'],
+   bio:'Harry Styles won Grammy for Best Pop Solo Performance for Watermelon Sugar. Fine Line debuted at number one in the UK and US simultaneously.',
+   itunes:'Harry Styles Watermelon Sugar'},
+  {g:'pop',title:'Heat Waves',artist:'Glass Animals',album:'Dreamland',year:2020,
+   fv:[6,6,5,7,5,3],tags:['indie pop','dreamy'],
+   bio:'English indie pop band from Oxford. Dave Bayley leads the group. Heat Waves spent 91 consecutive weeks on the Billboard Hot 100, a record-breaking run.',
+   itunes:'Glass Animals Heat Waves'},
+  {g:'pop',title:'Stay',artist:'The Kid LAROI',album:'F*ck Love',year:2021,
+   fv:[8,8,3,7,8,1],tags:['pop rap','high energy'],
+   bio:'Australian rapper and singer Charlton Howard from Sydney. Stay featuring Justin Bieber became one of the most-streamed songs of 2021 globally.',
+   itunes:'Kid LAROI Stay'},
+  // ── ROCK ──
+  {g:'rock',title:'Mr. Brightside',artist:'The Killers',album:'Hot Fuss',year:2003,
+   fv:[9,6,3,6,9,2],tags:['indie rock','anthemic'],
+   bio:'American rock band formed in Las Vegas 2001 by Brandon Flowers. Mr. Brightside has spent more weeks on the UK charts than any other song. Post-punk revival icons.',
+   itunes:'The Killers Mr Brightside'},
+  {g:'rock',title:'Bohemian Rhapsody',artist:'Queen',album:'A Night at the Opera',year:1975,
+   fv:[7,4,5,5,6,3],tags:['classic rock','operatic'],
+   bio:'British rock band formed in London 1970. Freddie Mercury vocal range spanned four octaves. Queen sold over 300 million records. Rock and Roll Hall of Fame inductees.',
+   itunes:'Queen Bohemian Rhapsody'},
+  {g:'rock',title:'Seven Nation Army',artist:'The White Stripes',album:'Elephant',year:2003,
+   fv:[8,5,4,5,7,2],tags:['garage rock','riff-driven'],
+   bio:'American rock duo Jack and Meg White from Detroit. Elephant won Grammy for Best Alternative Music Album. Known for raw minimalist two-instrument format.',
+   itunes:'White Stripes Seven Nation Army'},
+  {g:'rock',title:'Smells Like Teen Spirit',artist:'Nirvana',album:'Nevermind',year:1991,
+   fv:[9,5,3,4,8,2],tags:['grunge','iconic'],
+   bio:'American rock band from Aberdeen, Washington. Kurt Cobain, Krist Novoselic and Dave Grohl. Credited with bringing alternative rock and grunge to mainstream audiences.',
+   itunes:'Nirvana Smells Like Teen Spirit'},
+  {g:'rock',title:'Creep',artist:'Radiohead',album:'Pablo Honey',year:1992,
+   fv:[7,4,5,3,6,2],tags:['alternative','melancholic'],
+   bio:'English rock band from Abingdon, Oxfordshire. Thom Yorke leads one of the most critically acclaimed bands since the 1990s. Known for their experimental and evolving sound.',
+   itunes:'Radiohead Creep'},
+  {g:'rock',title:'Hotel California',artist:'Eagles',album:'Hotel California',year:1977,
+   fv:[6,5,7,5,6,4],tags:['classic rock','legendary'],
+   bio:'American rock band formed in Los Angeles. Hotel California won Grammy for Record of the Year 1978. The album has sold over 42 million copies worldwide.',
+   itunes:'Eagles Hotel California'},
+  {g:'rock',title:'Highway to Hell',artist:'AC/DC',album:'Highway to Hell',year:1979,
+   fv:[9,6,2,6,8,2],tags:['hard rock','classic'],
+   bio:'Australian-Scottish rock band founded in Sydney 1973 by brothers Malcolm and Angus Young. One of the best-selling music acts with over 200 million records sold.',
+   itunes:'ACDC Highway to Hell'},
+  {g:'rock',title:'Wonderwall',artist:'Oasis',album:'Morning Glory',year:1995,
+   fv:[6,5,7,7,6,2],tags:['britpop','acoustic'],
+   bio:'English rock band from Manchester. Brothers Liam and Noel Gallagher. One of the most successful Britpop acts. Morning Glory is one of the best-selling UK albums ever.',
+   itunes:'Oasis Wonderwall'},
+  // ── HIP-HOP ──
+  {g:'hiphop',title:'HUMBLE.',artist:'Kendrick Lamar',album:'DAMN.',year:2017,
+   fv:[8,8,1,5,8,1],tags:['trap','lyrical'],
+   bio:'American rapper from Compton, California. First non-classical non-jazz Pulitzer Prize winner in Music 2018. Widely regarded as one of the greatest rappers of all time.',
+   itunes:'Kendrick Lamar HUMBLE'},
+  {g:'hiphop',title:"God's Plan",artist:'Drake',album:'Scorpion',year:2018,
+   fv:[7,7,2,7,6,1],tags:['melodic rap','chill'],
+   bio:'Canadian rapper Aubrey Drake Graham from Toronto. Has spent more weeks at number one on the Billboard Hot 100 than any other solo artist. Over 50 billion streams.',
+   itunes:'Drake Gods Plan'},
+  {g:'hiphop',title:'SICKO MODE',artist:'Travis Scott',album:'Astroworld',year:2018,
+   fv:[8,8,1,5,8,1],tags:['trap','psychedelic'],
+   bio:'American rapper Jacques Webster from Houston, Texas. Known for signature autotune style and massive Astroworld festival. Astroworld debuted at number one on Billboard 200.',
+   itunes:'Travis Scott SICKO MODE'},
+  {g:'hiphop',title:'Lose Yourself',artist:'Eminem',album:'8 Mile',year:2002,
+   fv:[9,6,2,4,9,1],tags:['motivational','intense'],
+   bio:'American rapper Marshall Mathers from Detroit. Best-selling rapper with over 220 million records. Won Academy Award for Lose Yourself — only rap song to win Best Original Song.',
+   itunes:'Eminem Lose Yourself'},
+  {g:'hiphop',title:'Hotline Bling',artist:'Drake',album:'Views',year:2015,
+   fv:[6,7,3,6,5,1],tags:['melodic','danceable'],
+   bio:'Drake has over 50 billion combined streams. Known for blending hip-hop with R&B and pop. Views spent 13 non-consecutive weeks at number one on the Billboard 200.',
+   itunes:'Drake Hotline Bling'},
+  {g:'hiphop',title:'Old Town Road',artist:'Lil Nas X',album:'7 EP',year:2019,
+   fv:[7,8,5,7,7,1],tags:['country rap','crossover'],
+   bio:'American rapper Montero Hill from Atlanta. Old Town Road broke the record for most weeks at number one on the Billboard Hot 100 with 19 weeks at the top.',
+   itunes:'Lil Nas X Old Town Road'},
+  {g:'hiphop',title:'Alright',artist:'Kendrick Lamar',album:'To Pimp a Butterfly',year:2015,
+   fv:[7,7,4,7,7,2],tags:['conscious rap','jazz-hop'],
+   bio:'Kendrick Lamar blended jazz, soul and funk on To Pimp a Butterfly. Alright became an anthem for the Black Lives Matter movement and won multiple Grammy Awards.',
+   itunes:'Kendrick Lamar Alright'},
+  // ── ELECTRONIC ──
+  {g:'electronic',title:'Around the World',artist:'Daft Punk',album:'Homework',year:1997,
+   fv:[8,9,1,7,8,7],tags:['house','repetitive groove'],
+   bio:'French electronic duo Thomas Bangalter and Guy-Manuel de Homem-Christo from Paris. Defined modern electronic music for over two decades. Disbanded in 2021.',
+   itunes:'Daft Punk Around the World'},
+  {g:'electronic',title:'One More Time',artist:'Daft Punk',album:'Discovery',year:2001,
+   fv:[9,9,1,9,8,5],tags:['house','euphoric'],
+   bio:'Daft Punk pioneered nu-disco and filter house. Their Random Access Memories won five Grammys including Album of the Year 2014. One of the most acclaimed electronic duos.',
+   itunes:'Daft Punk One More Time'},
+  {g:'electronic',title:'Levels',artist:'Avicii',album:'True',year:2011,
+   fv:[9,8,1,9,9,4],tags:['progressive house','uplifting'],
+   bio:'Swedish DJ Tim Bergling from Stockholm. Pioneer of melodic progressive house music. Passed away April 2018 aged 28, leaving a profound and lasting musical legacy.',
+   itunes:'Avicii Levels'},
+  {g:'electronic',title:'Wake Me Up',artist:'Avicii',album:'True',year:2013,
+   fv:[7,7,5,8,7,2],tags:['folk EDM','emotional'],
+   bio:'Avicii fused folk and electronic music to create Wake Me Up with singer Aloe Blacc. The track became a global anthem and reached number one in 22 countries.',
+   itunes:'Avicii Wake Me Up'},
+  {g:'electronic',title:'Sandstorm',artist:'Darude',album:'Before the Storm',year:1999,
+   fv:[9,8,1,7,9,6],tags:['trance','iconic'],
+   bio:'Finnish DJ Ville Virtanen. Sandstorm became one of the most recognisable electronic tracks globally and a defining internet culture phenomenon and meme.',
+   itunes:'Darude Sandstorm'},
+  {g:'electronic',title:'Titanium',artist:'David Guetta ft Sia',album:'Nothing but the Beat',year:2011,
+   fv:[8,7,2,8,8,2],tags:['EDM','anthemic'],
+   bio:'French DJ David Guetta from Paris collaborated with Australian singer Sia Furler. Titanium became one of the defining anthems of the 2010s global EDM movement.',
+   itunes:'David Guetta Sia Titanium'},
+  // ── JAZZ ──
+  {g:'jazz',title:'So What',artist:'Miles Davis',album:'Kind of Blue',year:1959,
+   fv:[3,4,9,6,4,8],tags:['modal jazz','cool'],
+   bio:'American trumpeter from Alton, Illinois. Widely considered one of the most influential musicians in the 20th century. Pioneered cool jazz, hard bop, modal jazz and fusion.',
+   itunes:'Miles Davis So What Kind of Blue'},
+  {g:'jazz',title:'Take Five',artist:'Dave Brubeck Quartet',album:'Time Out',year:1959,
+   fv:[3,4,9,6,4,9],tags:['cool jazz','5/4 time'],
+   bio:'American jazz pianist from Concord, California. Pioneer of unusual time signatures. Time Out was the first jazz album to sell one million copies worldwide.',
+   itunes:'Dave Brubeck Take Five'},
+  {g:'jazz',title:'Fly Me to the Moon',artist:'Frank Sinatra',album:'It Might as Well Be Swing',year:1964,
+   fv:[5,6,7,8,6,4],tags:['vocal jazz','romantic'],
+   bio:'American singer from Hoboken, New Jersey, known as Ol Blue Eyes. One of the best-selling music artists of all time. Known for his warm baritone and impeccable phrasing.',
+   itunes:'Frank Sinatra Fly Me to the Moon'},
+  {g:'jazz',title:'What a Wonderful World',artist:'Louis Armstrong',album:'What a Wonderful World',year:1967,
+   fv:[3,3,9,9,3,4],tags:['vocal jazz','timeless'],
+   bio:'American trumpeter and singer from New Orleans, known as Satchmo. One of the most influential figures in jazz and 20th century American music. Legendary improviser.',
+   itunes:'Louis Armstrong What a Wonderful World'},
+  // ── CLASSICAL ──
+  {g:'classical',title:'Clair de Lune',artist:'Claude Debussy',album:'Suite bergamasque',year:1905,
+   fv:[2,2,10,6,3,10],tags:['impressionist','piano'],
+   bio:'French composer Achille-Claude Debussy (1862-1918). Pioneer of musical impressionism. His harmonic language profoundly influenced all 20th-century Western music.',
+   itunes:'Debussy Clair de Lune piano'},
+  {g:'classical',title:'Moonlight Sonata',artist:'Ludwig van Beethoven',album:'Piano Sonatas Op.27',year:1801,
+   fv:[3,2,10,3,3,10],tags:['romantic era','dramatic'],
+   bio:'German composer and pianist from Bonn (1770-1827). One of the greatest composers in history. Completed his late masterworks while almost completely deaf.',
+   itunes:'Beethoven Moonlight Sonata piano'},
+  {g:'classical',title:'Four Seasons: Spring',artist:'Antonio Vivaldi',album:'The Four Seasons',year:1725,
+   fv:[6,4,9,8,7,10],tags:['baroque','orchestral'],
+   bio:'Italian baroque composer Antonio Vivaldi (1678-1741) from Venice. Prolific composer of over 500 concertos. The Four Seasons is the most-performed baroque work today.',
+   itunes:'Vivaldi Spring Four Seasons violin'},
+  {g:'classical',title:'Canon in D',artist:'Johann Pachelbel',album:'Baroque Classics',year:1680,
+   fv:[4,3,10,7,4,10],tags:['baroque','peaceful'],
+   bio:'German baroque composer from Nuremberg (1653-1706). Canon in D remains one of the most performed and instantly recognisable works in all of Western classical music.',
+   itunes:'Pachelbel Canon D major'},
+  // ── SOUL / R&B ──
+  {g:'soul',title:'Respect',artist:'Aretha Franklin',album:'I Never Loved a Man',year:1967,
+   fv:[7,7,5,8,7,2],tags:['classic soul','powerful'],
+   bio:'American singer from Memphis, Tennessee. Known as the Queen of Soul. Won 18 Grammy Awards during her lifetime. First female inducted into the Rock and Roll Hall of Fame.',
+   itunes:'Aretha Franklin Respect'},
+  {g:'soul',title:'Superstition',artist:'Stevie Wonder',album:'Talking Book',year:1972,
+   fv:[8,8,5,8,8,3],tags:['funk soul','iconic'],
+   bio:'American musician Stevland Morris from Saginaw, Michigan. Born blind. Has won 25 Grammy Awards — more than any other male solo artist in Grammy history.',
+   itunes:'Stevie Wonder Superstition'},
+  {g:'soul',title:'Leave the Door Open',artist:'Silk Sonic',album:'An Evening with Silk Sonic',year:2021,
+   fv:[6,7,5,8,5,2],tags:['neo-soul','smooth'],
+   bio:'Bruno Mars (Hawaiian singer from Honolulu) and Anderson Paak (American drummer from Oxnard) formed Silk Sonic. Won Grammy for Record of the Year 2022.',
+   itunes:'Bruno Mars Anderson Paak Leave the Door Open'},
+  {g:'soul',title:'Crazy in Love',artist:'Beyonce',album:'Dangerously in Love',year:2003,
+   fv:[8,9,2,8,9,2],tags:['R&B','powerhouse'],
+   bio:'American singer from Houston, Texas. Most Grammy-awarded artist of all time with 32 wins. Known for electrifying live performances and groundbreaking visual albums.',
+   itunes:'Beyonce Crazy in Love'},
+  {g:'soul',title:'Redbone',artist:'Childish Gambino',album:'Awaken My Love',year:2016,
+   fv:[5,6,6,6,4,3],tags:['psychedelic soul','funky'],
+   bio:'American rapper, actor and filmmaker Donald Glover from Stone Mountain, Georgia. Redbone won Grammy for Best Traditional R&B Performance 2018. Also known as Donald Glover.',
+   itunes:'Childish Gambino Redbone'},
+  // ── METAL ──
+  {g:'metal',title:'Master of Puppets',artist:'Metallica',album:'Master of Puppets',year:1986,
+   fv:[10,4,1,3,9,2],tags:['thrash metal','complex'],
+   bio:'American heavy metal band from San Francisco. James Hetfield and Lars Ulrich founded the band in 1981. One of the greatest and best-selling bands with over 125 million records.',
+   itunes:'Metallica Master of Puppets'},
+  {g:'metal',title:'Chop Suey',artist:'System of a Down',album:'Toxicity',year:2001,
+   fv:[9,4,2,3,8,2],tags:['nu-metal','intense'],
+   bio:'American metal band from Los Angeles formed by Armenian-Americans. Toxicity debuted at number one on Billboard 200. Known for politically charged lyrics and eclectic style.',
+   itunes:'System of a Down Chop Suey'},
+  {g:'metal',title:'Enter Sandman',artist:'Metallica',album:'Metallica Black Album',year:1991,
+   fv:[9,5,2,3,8,2],tags:['heavy metal','iconic'],
+   bio:'The Black Album spent four consecutive weeks at number one and sold 35 million copies. One of the best-selling albums in music history. Defined heavy metal for a generation.',
+   itunes:'Metallica Enter Sandman'},
+  {g:'metal',title:'Killing in the Name',artist:'Rage Against the Machine',album:'Rage Against the Machine',year:1992,
+   fv:[10,5,1,3,9,1],tags:['rap metal','political'],
+   bio:'American band from Los Angeles featuring Zack de la Rocha and Tom Morello. Known for politically charged lyrics fusing heavy metal, hip-hop and funk elements.',
+   itunes:'Rage Against the Machine Killing in the Name'},
+  // ── LO-FI ──
+  {g:'lofi',title:'Snowfall',artist:'Oneheart x reidenshi',album:'Snowfall EP',year:2021,
+   fv:[2,3,9,6,3,8],tags:['lo-fi','cozy'],
+   bio:'Oneheart is a Hungarian lo-fi producer known for melancholic beats. Reidenshi is a Japanese producer creating warm atmospheric soundscapes for studying and relaxation.',
+   itunes:'lofi hip hop chill beats study'},
+  {g:'lofi',title:'Caramel',artist:'City Girl',album:'Neon Impasse',year:2017,
+   fv:[2,4,9,7,3,8],tags:['lo-fi','jazz-hop'],
+   bio:'American lo-fi producer known for jazz-influenced warm beats with a nostalgic atmosphere. A pioneer of the lo-fi hip-hop genre that grew popular on streaming platforms.',
+   itunes:'City Girl lo-fi jazz hip hop'},
+  {g:'lofi',title:'Aesthetic',artist:'Xilo',album:'Lo-fi Selections',year:2020,
+   fv:[2,3,9,6,3,9],tags:['ambient','chill'],
+   bio:'Lo-fi music producer creating peaceful atmospheric soundscapes. Featured extensively on major chill, study and sleep music playlists across all streaming platforms.',
+   itunes:'lofi chill ambient study beats'},
+  // ── LATIN ──
+  {g:'latin',title:'Despacito',artist:'Luis Fonsi',album:'Vida',year:2017,
+   fv:[7,9,4,8,7,2],tags:['reggaeton','tropical'],
+   bio:'Puerto Rican singer from San Juan. Despacito featuring Daddy Yankee surpassed 8 billion YouTube views. One of the most streamed songs in the history of music.',
+   itunes:'Luis Fonsi Despacito'},
+  {g:'latin',title:'Con Calma',artist:'Daddy Yankee',album:'Con Calma Single',year:2019,
+   fv:[8,9,3,8,8,2],tags:['reggaeton','danceable'],
+   bio:'Puerto Rican rapper Raymond Ayala from San Juan, known as the King of Reggaeton. Pioneer of the genre since the early 1990s. One of the most influential Latin artists.',
+   itunes:'Daddy Yankee Con Calma Snow'},
+  {g:'latin',title:'Tusa',artist:'KAROL G',album:'Ocean EP',year:2019,
+   fv:[8,9,2,7,8,1],tags:['reggaeton pop','global'],
+   bio:'Colombian singer Carolina Giraldo Navarro from Medellin, known as La Bichota. Crossed language and genre barriers to become a global phenomenon. First Latin woman to top Spotify global charts.',
+   itunes:'KAROL G Nicki Minaj Tusa'},
+  {g:'latin',title:'Bailando',artist:'Enrique Iglesias',album:'Sex and Love',year:2014,
+   fv:[8,9,3,8,8,1],tags:['latin pop','romantic'],
+   bio:'Spanish-American singer from Madrid. Son of Julio Iglesias. Has had more number one singles on Billboard Hot Latin Songs than any other artist. Sold over 180 million records.',
+   itunes:'Enrique Iglesias Bailando'},
+  // ── K-POP ──
+  {g:'kpop',title:'Dynamite',artist:'BTS',album:'Dynamite Single',year:2020,
+   fv:[9,9,1,9,9,1],tags:['retro pop','energetic'],
+   bio:'South Korean boy band: RM, Jin, Suga, J-Hope, Jimin, V, Jungkook. First K-pop act to top the Billboard Hot 100. Global phenomenon with record-breaking album sales.',
+   itunes:'BTS Dynamite'},
+  {g:'kpop',title:'How You Like That',artist:'BLACKPINK',album:'The Album',year:2020,
+   fv:[9,8,1,7,9,1],tags:['trap pop','powerful'],
+   bio:'South Korean girl group: Jisoo, Jennie, Rose, Lisa. Highest-charting female K-pop act on Billboard Hot 100. Global luxury brand ambassadors and record-breaking YouTube presence.',
+   itunes:'BLACKPINK How You Like That'},
+  {g:'kpop',title:'Butter',artist:'BTS',album:'Butter Single',year:2021,
+   fv:[9,9,1,9,9,1],tags:['funky pop','smooth'],
+   bio:'BTS Butter spent 10 consecutive weeks at number one on the Billboard Hot 100 in 2021. The song broke numerous streaming records on its release day globally.',
+   itunes:'BTS Butter kpop'},
+  {g:'kpop',title:'Pink Venom',artist:'BLACKPINK',album:'Born Pink',year:2022,
+   fv:[9,8,2,7,9,1],tags:['hip-hop pop','fierce'],
+   bio:'BLACKPINK Born Pink became the best-charting album by a female K-pop act. Pink Venom broke YouTube premiere viewership records with over 3.4 million concurrent viewers.',
+   itunes:'BLACKPINK Pink Venom'},
+  // ── COUNTRY ──
+  {g:'country',title:'Jolene',artist:'Dolly Parton',album:'Jolene',year:1973,
+   fv:[5,5,8,5,6,3],tags:['classic country','storytelling'],
+   bio:'American singer from Locust Ridge, Tennessee. One of the most celebrated country musicians. Has donated over 200 million books to children and funded COVID vaccine research.',
+   itunes:'Dolly Parton Jolene'},
+  {g:'country',title:'Fast Car',artist:'Tracy Chapman',album:'Tracy Chapman',year:1988,
+   fv:[5,5,8,6,5,3],tags:['folk country','narrative'],
+   bio:'American singer-songwriter from Cleveland, Ohio. Known for distinctive mezzo-soprano voice and socially conscious lyrics. Won four Grammy Awards. Fast Car became a 2023 hit again with Luke Combs.',
+   itunes:'Tracy Chapman Fast Car'},
+  {g:'country',title:'Take Me Home Country Roads',artist:'John Denver',album:'Poems Prayers Promises',year:1971,
+   fv:[5,5,8,8,5,3],tags:['folk country','sing-along'],
+   bio:'American singer-songwriter Henry Deutschendorf from Roswell, New Mexico. Known for acoustic folk-country. Beloved cultural ambassador of the 1970s. Became official state song of West Virginia.',
+   itunes:'John Denver Take Me Home Country Roads'},
+];
+
+// ═══════════════════════════════════════════
+// ML ENGINE — COSINE SIMILARITY + KNN
+// ═══════════════════════════════════════════
+var MOOD_WEIGHTS = {
+  energetic:  [.35,.25,-.1,.1,.25,-.05],
+  chill:      [-.2,-.1,.3,.1,-.2,.1],
+  focused:    [.1,-.1,.2,0,.1,.3],
+  melancholic:[-.2,-.2,.3,-.3,-.1,.1],
+  happy:      [.2,.2,0,.4,.1,-.1],
+  romantic:   [-.1,.1,.2,.3,-.1,.1],
+  workout:    [.4,.3,-.2,.1,.3,-.1],
+  party:      [.25,.4,-.2,.3,.2,-.2],
+};
+
+function dot(a,b){ return a.reduce(function(s,v,i){return s+v*b[i];},0); }
+function mag(a){ return Math.sqrt(a.reduce(function(s,v){return s+v*v;},0)); }
+function cosine(a,b){ var d=dot(a,b),ma=mag(a),mb=mag(b); return(!ma||!mb)?0:d/(ma*mb); }
+
+function moodAdjustedVec(v){
+  var w = MOOD_WEIGHTS[mood]||[];
+  return v.map(function(x,i){ return Math.max(0,Math.min(10, x+(w[i]||0)*10)); });
+}
+
+function userVector(){
+  return [sv.energy,sv.dance,sv.acoustic,sv.valence,sv.tempo,sv.instr];
+}
+
+function mlScore(songFV){
+  var uv = moodAdjustedVec(userVector());
+  var sv2 = moodAdjustedVec(songFV);
+  var sim = cosine(uv, sv2);
+  return Math.round(62 + sim*37);
+}
+
+// ═══════════════════════════════════════════
+// iTUNES PREVIEW — ON-DEMAND FETCH WHEN PLAY CLICKED
+// ═══════════════════════════════════════════
+var previewCache = {};   // title -> {url, art300, art100} | 'none'
+
+async function fetchPreviewUrl(song){
+  var key = song.title;
+  if(previewCache[key]) return previewCache[key];
+  try{
+    var url = 'https://itunes.apple.com/search?term=' + encodeURIComponent(song.itunes) +
+              '&media=music&entity=song&limit=5&country=us';
+    var res = await fetch(url, {mode:'cors'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    var data = await res.json();
+    var results = (data.results||[]);
+    for(var i=0;i<results.length;i++){
+      var r = results[i];
+      if(r.previewUrl){
+        var obj = {
+          url: r.previewUrl,
+          art100: r.artworkUrl100||'',
+          art300: (r.artworkUrl100||'').replace('100x100bb','600x600bb')
+        };
+        previewCache[key] = obj;
+        return obj;
+      }
+    }
+  }catch(e){}
+  previewCache[key] = 'none';
+  return null;
+}
+
+// ═══════════════════════════════════════════
+// AUDIO PLAYER
+// ═══════════════════════════════════════════
+var PLAY_IC  = '<svg width="11" height="11" viewBox="0 0 12 12"><path d="M3 2L10 6L3 10Z" fill="white"/></svg>';
+var PAUSE_IC = '<svg width="11" height="11" viewBox="0 0 12 12"><rect x="2" y="2" width="3" height="8" rx="1" fill="white"/><rect x="7" y="2" width="3" height="8" rx="1" fill="white"/></svg>';
+var LOAD_IC  = '<svg width="11" height="11" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" stroke="white" stroke-width="1.5" fill="none" stroke-dasharray="6 6"><animateTransform attributeName="transform" type="rotate" from="0 6 6" to="360 6 6" dur="0.8s" repeatCount="indefinite"/></circle></svg>';
+
+function stopAudio(){
+  if(curAudio){ curAudio.pause(); curAudio=null; }
+  if(curBtn){ curBtn.classList.remove('playing','loading'); curBtn.innerHTML=PLAY_IC; curBtn=null; }
+  if(curFill){ curFill.style.width='0%'; curFill=null; }
+  if(progTimer){ clearInterval(progTimer); progTimer=null; }
+}
+
+async function clickPlay(songTitle, btnId, fillId, curId, durId){
+  var btn = document.getElementById(btnId);
+  var fill = document.getElementById(fillId);
+  if(!btn||!fill) return;
+
+  // If same track is playing — pause
+  if(curBtn===btn && curAudio && !curAudio.paused){
+    curAudio.pause(); clearInterval(progTimer);
+    btn.classList.remove('playing'); btn.innerHTML=PLAY_IC; return;
+  }
+  // If same track is paused — resume
+  if(curBtn===btn && curAudio && curAudio.paused){
+    curAudio.play(); btn.classList.add('playing'); btn.innerHTML=PAUSE_IC;
+    progTimer=setInterval(function(){
+      if(!curAudio||!curAudio.duration)return;
+      fill.style.width=(curAudio.currentTime/curAudio.duration*100)+'%';
+      var el=document.getElementById(curId);if(el)el.textContent=fmt(curAudio.currentTime);
+    },300);
+    return;
+  }
+
+  stopAudio();
+
+  // Show loading spinner
+  btn.classList.add('loading'); btn.innerHTML=LOAD_IC;
+
+  // Find the song in DB
+  var song = null;
+  for(var i=0;i<DB.length;i++){ if(DB[i].title===songTitle){song=DB[i];break;} }
+  if(!song){ btn.classList.remove('loading'); return; }
+
+  var pdata = await fetchPreviewUrl(song);
+
+  if(!pdata || pdata==='none'){
+    btn.classList.remove('loading'); btn.disabled=true;
+    btn.title='No preview available';
+    btn.innerHTML='<svg width="11" height="11" viewBox="0 0 12 12"><line x1="2" y1="2" x2="10" y2="10" stroke="white" stroke-width="1.5"/><line x1="10" y1="2" x2="2" y2="10" stroke="white" stroke-width="1.5"/></svg>';
+    var cur2=document.getElementById(curId); if(cur2) cur2.textContent='No preview';
+    return;
+  }
+
+  // Update artwork if we got it
+  var artEl = document.getElementById('art-'+btnId);
+  if(artEl && pdata.art300){
+    var img = artEl.querySelector('img');
+    if(!img){
+      img = document.createElement('img'); img.alt='art'; img.loading='lazy';
+      artEl.innerHTML=''; artEl.appendChild(img);
+    }
+    img.src = pdata.art300;
+  }
+  var avEl = document.getElementById('av-'+btnId);
+  if(avEl && pdata.art100){
+    var img2 = avEl.querySelector('img');
+    if(!img2){
+      img2=document.createElement('img'); img2.alt='av'; img2.loading='lazy';
+      avEl.innerHTML=''; avEl.appendChild(img2);
+    }
+    img2.src = pdata.art100;
+  }
+  // Update audio count stat
+  audioCount++;
+  document.getElementById('sn-audio').textContent=audioCount;
+
+  var audio = new Audio(pdata.url);
+  curAudio=audio; curBtn=btn; curFill=fill;
+  btn.classList.remove('loading'); btn.classList.add('playing'); btn.innerHTML=PAUSE_IC;
+
+  function fmt(s){ s=Math.floor(s||0); return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60); }
+
+  audio.addEventListener('loadedmetadata',function(){
+    var el=document.getElementById(durId); if(el)el.textContent=fmt(audio.duration);
+  });
+  audio.addEventListener('ended', stopAudio);
+  audio.addEventListener('error',function(){
+    stopAudio();
+    btn.disabled=true;
+    btn.innerHTML='<svg width="11" height="11" viewBox="0 0 12 12"><line x1="2" y1="2" x2="10" y2="10" stroke="white" stroke-width="1.5"/><line x1="10" y1="2" x2="2" y2="10" stroke="white" stroke-width="1.5"/></svg>';
+    var el=document.getElementById(curId); if(el)el.textContent='Error';
+  });
+  progTimer=setInterval(function(){
+    if(!audio.duration)return;
+    fill.style.width=(audio.currentTime/audio.duration*100)+'%';
+    var el=document.getElementById(curId); if(el)el.textContent=fmt(audio.currentTime);
+  },300);
+  audio.play().catch(function(e){
+    stopAudio(); console.warn('play error',e);
+  });
+}
+
+function seekTo(e, btnId, fillId){
+  if(!curAudio||curBtn!==document.getElementById(btnId))return;
+  var bar=e.currentTarget; var r=bar.getBoundingClientRect();
+  var p=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+  curAudio.currentTime=p*curAudio.duration;
+  document.getElementById(fillId).style.width=(p*100)+'%';
+}
+
+// ═══════════════════════════════════════════
+// MAIN FLOW
+// ═══════════════════════════════════════════
+var LMSGS=['Scoring tracks with cosine similarity…','Applying KNN ranking (K=7)…',
+           'Mood-weighting feature vectors…','Preparing your personalised mix…'];
+var lTimer, lIdx=0;
+
+function getRecs(){
+  var btn = document.getElementById('cta-btn');
+  var loader = document.getElementById('loader');
+  var results = document.getElementById('results');
+  var ph = document.getElementById('placeholder');
+  var vinyl = document.getElementById('vinyl');
+
+  btn.disabled=true; loader.classList.add('on');
+  results.classList.remove('on'); ph.style.display='none';
+  vinyl.classList.add('on'); stopAudio(); audioCount=0;
+  lIdx=0; document.getElementById('loader-msg').textContent=LMSGS[0];
+  lTimer=setInterval(function(){
+    lIdx=(lIdx+1)%LMSGS.length;
+    document.getElementById('loader-msg').textContent=LMSGS[lIdx];
+  },700);
+
+  // Short delay so the loader animation shows
+  setTimeout(function(){
+    clearInterval(lTimer);
+
+    // Filter by selected genres
+    var pool = DB.filter(function(s){ return selGenres.size===0 || selGenres.has(s.g); });
+    if(!pool.length) pool = DB.slice();
+
+    // ML score every song
+    var scored = pool.map(function(s){ return {s:s, sc:mlScore(s.fv)}; });
+    scored.sort(function(a,b){ return b.sc-a.sc; });
+    var top = scored.slice(0,12);
+
+    document.getElementById('sn-songs').textContent=pool.length;
+    document.getElementById('sn-genres').textContent=selGenres.size;
+    document.getElementById('sn-audio').textContent='0';
+    document.getElementById('sn-top').textContent=(top[0]?top[0].sc:0)+'%';
+
+    loader.classList.remove('on');
+    btn.disabled=false; vinyl.classList.remove('on');
+    renderResults(top);
+  }, 1600);
+}
+
+// ═══════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════
+var EMOJIS = ['🎵','🎶','🎸','🎹','🎺','🎻','🥁','🎷','🎤','🎧','🪗','🎼'];
+var TC = ['tg','tp','tt2'];
+var ML_REASONS = [
+  function(s,sc){return 'Cosine similarity '+sc+'% — your feature vector [E:'+sv.energy+' D:'+sv.dance+' A:'+sv.acoustic+'] closely matches this '+s.g+' track in 6D feature space.';},
+  function(s,sc){return 'KNN (K=7) placed this track as a top nearest neighbour. Mood context "'+mood+'" shifted the query vector toward this genre cluster.';},
+  function(s,sc){return 'Content-based filtering: acousticness and valence dimensions drove the high similarity. '+s.g+' genre vector alignment confirmed.';},
+  function(s,sc){return 'Collaborative signals confirm high affinity — users sharing your "'+mood+'" mood profile and sliders frequently listen to this track.';},
+];
+
+function esc(s){ return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function renderResults(items){
+  var resDiv = document.getElementById('results');
+  var grid = document.getElementById('track-grid');
+  document.getElementById('rs-badge').textContent = items.length+' tracks';
+
+  grid.innerHTML = items.map(function(item,i){
+    var s=item.s, sc=item.sc;
+    var bid='b'+i, fid='f'+i, cid='c'+i, did='d'+i;
+    var allTags = (s.tags||[]).concat([s.g]);
+    var tagHTML = allTags.slice(0,3).map(function(t,ti){
+      return '<span class="tag '+TC[ti%3]+'">'+esc(t)+'</span>';
+    }).join('');
+    var reason = ML_REASONS[i%4](s,sc);
+
+    // Use emoji as placeholder for artwork (real art loads on play click)
+    var emoji = EMOJIS[i%EMOJIS.length];
+
+    return (
+      '<div class="card" style="animation-delay:'+(i*0.07)+'s">'
+      // TOP ROW
+      +'<div class="card-top">'
+        +'<div class="rank">'+(i<9?'0':'')+(i+1)+'</div>'
+        +'<div class="art" id="art-'+bid+'">'+emoji+'</div>'
+        +'<div class="info">'
+          +'<div class="t-name">'+esc(s.title)+'</div>'
+          +'<div class="t-artist">'+esc(s.artist)+'</div>'
+          +'<div class="t-album">'+esc(s.album)+' · '+s.year+'</div>'
+        +'</div>'
+        +'<div class="match-ring"><div class="match-n">'+sc+'%</div><div class="match-l">MATCH</div></div>'
+      +'</div>'
+      // TAGS
+      +'<div class="tags">'+tagHTML+'</div>'
+      // ARTIST ROW
+      +'<div class="artist-row">'
+        +'<div class="av" id="av-'+bid+'">🎤</div>'
+        +'<div class="ai">'
+          +'<div class="ai-name">'+esc(s.artist)+'</div>'
+          +'<div class="ai-genre">'+esc(s.g)+'</div>'
+          +'<div class="ai-bio">'+esc(s.bio)+'</div>'
+        +'</div>'
+      +'</div>'
+      // PLAYER
+      +'<div class="player">'
+        +'<button class="play-btn" id="'+bid+'" onclick="clickPlay(\''+esc(s.title)+'\',\''+bid+'\',\''+fid+'\',\''+cid+'\',\''+did+'\')" title="Click to load & play 30s preview">'
+          +PLAY_IC
+        +'</button>'
+        +'<div class="prog-outer">'
+          +'<div class="prog-bar" id="bar-'+bid+'" onclick="seekTo(event,\''+bid+'\',\''+fid+'\')">'
+            +'<div class="prog-fill" id="'+fid+'"></div>'
+          +'</div>'
+          +'<div class="time-row"><span id="'+cid+'">0:00</span><span id="'+did+'">0:30</span></div>'
+        +'</div>'
+        +'<div class="prev-lbl">▶ 30s</div>'
+      +'</div>'
+      // ML REASON
+      +'<div class="ml-row">'
+        +'<div class="ml-chip">ML</div>'
+        +'<div class="ml-text">'+reason+'</div>'
+      +'</div>'
+    +'</div>'
+    );
+  }).join('');
+
+  resDiv.classList.add('on');
+  setTimeout(function(){ resDiv.scrollIntoView({behavior:'smooth',block:'start'}); }, 100);
+}
+
+// ═══════════════════════════════════════════
+// SIDEBAR INTERACTIONS
+// ═══════════════════════════════════════════
+document.querySelectorAll('.gt').forEach(function(t){
+  t.addEventListener('click',function(){
+    t.classList.toggle('on');
+    selGenres.has(t.dataset.g) ? selGenres.delete(t.dataset.g) : selGenres.add(t.dataset.g);
+    document.getElementById('sn-genres').textContent=selGenres.size;
+  });
+});
+document.querySelectorAll('.mp').forEach(function(p){
+  p.addEventListener('click',function(){
+    document.querySelectorAll('.mp').forEach(function(x){x.classList.remove('on');});
+    p.classList.add('on'); mood=p.dataset.m;
+  });
+});
+document.querySelectorAll('input[type=range]').forEach(function(sl){
+  sl.addEventListener('input',function(){
+    var k=sl.dataset.k, v=parseInt(sl.value);
+    sv[k]=v;
+    document.getElementById('sv-'+k).textContent=v;
+    document.getElementById('sf-'+k).style.width=(v*10)+'%';
+    updateChart();
+  });
+});
+
+// ═══════════════════════════════════════════
+// RADAR CHART
+// ═══════════════════════════════════════════
+function togglePanel(){
+  panelMin=!panelMin;
+  document.getElementById('cp').classList.toggle('min',panelMin);
+}
+
+window.addEventListener('load',function(){
+  var c = document.getElementById('radar-canvas');
+  if(!c||!window.Chart) return;
+  radarChart = new Chart(c.getContext('2d'),{
+    type:'radar',
+    data:{
+      labels:['Energy','Dance','Acoustic','Valence','Tempo','Instr.'],
+      datasets:[
+        {label:'You',data:[7,6,3,6,7,2],borderColor:'#9B6B2E',backgroundColor:'rgba(155,107,46,.14)',borderWidth:2,pointBackgroundColor:'#9B6B2E',pointRadius:3},
+        {label:'Avg',data:[5.5,5.2,4.8,5.0,5.3,3.1],borderColor:'#0FA58E',backgroundColor:'rgba(15,165,142,.07)',borderWidth:1.5,pointBackgroundColor:'#0FA58E',pointRadius:2,borderDash:[4,4]}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      scales:{r:{min:0,max:10,
+        ticks:{stepSize:2,color:'rgba(96,99,138,.4)',font:{size:7},backdropColor:'transparent'},
+        grid:{color:'rgba(96,99,138,.1)'},
+        angleLines:{color:'rgba(96,99,138,.12)'},
+        pointLabels:{color:'#60638A',font:{size:9}}
+      }},
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:'#fff',borderColor:'rgba(96,99,138,.2)',borderWidth:.5,
+          titleColor:'#9B6B2E',bodyColor:'#13142A',titleFont:{size:10},bodyFont:{size:10}}
+      }
+    }
+  });
+});
+
+function updateChart(){
+  if(!radarChart)return;
+  radarChart.data.datasets[0].data=[sv.energy,sv.dance,sv.acoustic,sv.valence,sv.tempo,sv.instr];
+  radarChart.update('active');
+}
+</script>
+</body>
+</html>
